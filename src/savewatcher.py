@@ -15,7 +15,7 @@ def newest_save_mtime():
     if not os.path.exists(config['SAVE_PATH']):
         return None
 
-    for root, dirs, files in os.walk(config.SAVE_PATH):
+    for root, dirs, files in os.walk(config['SAVE_PATH']):
         for file in files:
             path = os.path.join(root, file)
 
