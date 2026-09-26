@@ -97,9 +97,9 @@ def follow_logs_forever():
         # Open file with 'errors="ignore"' to safely handle Windows encoding issues
         with open(log_file, "r", errors="ignore", encoding="utf-8") as f:
             # 1. First boot: Parse existing log content to catch current state/version
-            print("[*] Parsing initial log history...")
-            for line in f:
-                parse_line(line)
+            # print("[*] Parsing initial log history...")
+            # for line in f:
+            #     parse_line(line)
                 
             # 2. Move to the end of the file and stream new entries live
             f.seek(0, os.SEEK_END)
