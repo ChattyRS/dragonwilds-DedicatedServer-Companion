@@ -1,9 +1,9 @@
 import os
 import time
 import threading
-from data import config
-from state import update_field
-from utils import seconds_to_human
+from src.configuration import config
+from src.state import update_field
+from src.utils import seconds_to_human
 
 
 _last_mtime = None
@@ -12,7 +12,7 @@ _last_mtime = None
 def newest_save_mtime():
     newest = None
 
-    if not os.path.exists(config.SAVE_PATH):
+    if not os.path.exists(config['SAVE_PATH']):
         return None
 
     for root, dirs, files in os.walk(config.SAVE_PATH):

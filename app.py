@@ -1,11 +1,10 @@
 from flask import Flask, jsonify
-from data import config
-from database import init_db
-from state import get_state
-from monitor import start_monitor
-from dockerstats import start_dockerstats
-from savewatcher import start_savewatcher
-from database import get_leaderboard
+from src.configuration import get_config
+from src.database import init_db
+from src.state import get_state
+from src.monitor import start_monitor
+from src.savewatcher import start_savewatcher
+from src.database import get_leaderboard
 
 
 app = Flask(__name__)
@@ -127,7 +126,7 @@ def index():
         <div class="label">Status</div>
         <div class="value online">Healthy</div>
         <br>
-        <div class="small">Docker running, API responding, save path active.</div>
+        <div class="small">Server running, API responding, save path active.</div>
       </div>
 
       <div class="card">
@@ -230,16 +229,15 @@ setInterval(refresh, 5000);
 """
 
 if __name__ == "__main__":
+    config = get_config()
     init_db()
     start_monitor()
-    start_dockerstats()
     start_savewatcher()
 
     app.run(
         host="0.0.0.0",
         port=config.PORT
     )
-    start_dockerstats()
     start_savewatcher()
 
     app.run(

@@ -1,12 +1,13 @@
 import os
 import pymysql
 from datetime import datetime
+from src.configuration import config
 
-MYSQL_HOST = os.getenv("MYSQL_HOST")
-MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_HOST = config['SQL_HOST']
+MYSQL_PORT = config['SQL_PORT']
+MYSQL_DATABASE = config['SQL_DATABASE']
+MYSQL_USER = config['SQL_USER']
+MYSQL_PASSWORD = config['SQL_PASSWORD']
 
 
 def db_enabled():

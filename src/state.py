@@ -1,7 +1,7 @@
 import time
 from threading import Lock
 from datetime import datetime
-from data import config
+from src.configuration import config
 
 _lock = Lock()
 
@@ -66,7 +66,7 @@ def get_state():
             "world": state["world"],
             "version": state["version"],
             "players_online": len(players),
-            "max_players": config.MAX_PLAYERS,
+            "max_players": config['MAX_PLAYERS'],
             "players": players,
             "players_text": ", ".join(players) if players else "None",
             "cpu": state["cpu"],
