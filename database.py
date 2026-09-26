@@ -34,37 +34,46 @@ def init_db():
 
     with conn.cursor() as cur:
         cur.execute("""
-        CREATE TABLE IF NOT EXISTS player_sessions (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            player_name VARCHAR(100) NOT NULL,
-            account_id VARCHAR(100) NOT NULL,
-            joined_at DATETIME NOT NULL,
-            left_at DATETIME NULL,
-            duration_seconds INT DEFAULT 0,
-            INDEX(player_name),
-            INDEX(account_id),
-            INDEX(joined_at)
-        )
+        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'player_sessions')
+        BEGIN
+            CREATE TABLE player_sessions (
+                id BIGSERIAL PRIMARY KEY,
+                player_name VARCHAR(100) NOT NULL,
+                account_id VARCHAR(100) NOT NULL,
+                joined_at TIMESTAMP NOT NULL,
+                left_at TIMESTAMP NULL,
+                duration_seconds INT DEFAULT 0
+            );
+            CREATE INDEX idx_player_sessions_player_name ON player_sessions (player_name);
+            CREATE INDEX idx_player_sessions_account_id ON player_sessions (account_id);
+            CREATE INDEX idx_player_sessions_joined_at ON player_sessions (joined_at);
+        END
         """)
 
         cur.execute("""
-        CREATE TABLE IF NOT EXISTS server_metrics (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            timestamp DATETIME NOT NULL,
-            cpu_percent FLOAT NULL,
-            memory_gib FLOAT NULL,
-            players_online INT NOT NULL,
-            INDEX(timestamp)
-        )
+        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'server_metrics')
+        BEGIN
+            CREATE TABLE server_metrics (
+                id BIGSERIAL PRIMARY KEY,
+                timestamp TIMESTAMP NOT NULL,
+                cpu_percent FLOAT NULL,
+                memory_gib FLOAT NULL,
+                players_online INT NOT NULL
+            );
+            CREATE INDEX idx_server_metrics_timestamp ON server_metrics (timestamp);
+        END
         """)
 
         cur.execute("""
-        CREATE TABLE IF NOT EXISTS events (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            timestamp DATETIME NOT NULL,
-            message VARCHAR(255) NOT NULL,
-            INDEX(timestamp)
-        )
+        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'events')
+        BEGIN
+            CREATE TABLE events (
+                id BIGSERIAL PRIMARY KEY,
+                timestamp TIMESTAMP NOT NULL,
+                message VARCHAR(255) NOT NULL
+            );
+            CREATE INDEX idx_events_timestamp ON events (timestamp);
+        END
         """)
 
     conn.close()
