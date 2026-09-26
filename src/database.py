@@ -1,29 +1,24 @@
-import os
-import pymysql
+from sqlalchemy import create_engine, text
 from datetime import datetime
 from src.configuration import config
+from src.utils import seconds_to_human
 
-MYSQL_HOST = config['SQL_HOST']
-MYSQL_PORT = config['SQL_PORT']
-MYSQL_DATABASE = config['SQL_DATABASE']
-MYSQL_USER = config['SQL_USER']
-MYSQL_PASSWORD = config['SQL_PASSWORD']
+SQL_HOST = config['SQL_HOST']
+SQL_PORT = config['SQL_PORT']
+SQL_DATABASE = config['SQL_DATABASE']
+SQL_USER = config['SQL_USER']
+SQL_PASSWORD = config['SQL_PASSWORD']
 
 
 def db_enabled():
-    return all([MYSQL_HOST, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD])
+    return all([SQL_HOST, SQL_DATABASE, SQL_USER, SQL_PASSWORD])
 
 
-def get_connection():
-    return pymysql.connect(
-        host=MYSQL_HOST,
-        port=MYSQL_PORT,
-        user=MYSQL_USER,
-        password=MYSQL_PASSWORD,
-        database=MYSQL_DATABASE,
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=True
-    )
+def get_connection_engine():
+    # Create the connection engine (using the psycopg2 synchronous driver)
+    DATABASE_URL = f"postgresql+psycopg2://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DATABASE}"
+    engine = create_engine(DATABASE_URL, echo=True)  # echo=True logs the raw SQL statements to the console
+    return engine
 
 
 def init_db():
@@ -31,53 +26,53 @@ def init_db():
         print("Database disabled: missing MySQL environment variables")
         return
 
-    conn = get_connection()
+    with get_connection_engine().connect() as connection:
+        connection.execute(text("""
+            IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'player_sessions')
+            BEGIN
+                CREATE TABLE player_sessions (
+                    id BIGSERIAL PRIMARY KEY,
+                    player_name VARCHAR(100) NOT NULL,
+                    account_id VARCHAR(100) NOT NULL,
+                    joined_at TIMESTAMP NOT NULL,
+                    left_at TIMESTAMP NULL,
+                    duration_seconds INT DEFAULT 0
+                );
+                CREATE INDEX idx_player_sessions_player_name ON player_sessions (player_name);
+                CREATE INDEX idx_player_sessions_account_id ON player_sessions (account_id);
+                CREATE INDEX idx_player_sessions_joined_at ON player_sessions (joined_at);
+            END
+        """))
+        connection.commit()
 
-    with conn.cursor() as cur:
-        cur.execute("""
-        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'player_sessions')
-        BEGIN
-            CREATE TABLE player_sessions (
-                id BIGSERIAL PRIMARY KEY,
-                player_name VARCHAR(100) NOT NULL,
-                account_id VARCHAR(100) NOT NULL,
-                joined_at TIMESTAMP NOT NULL,
-                left_at TIMESTAMP NULL,
-                duration_seconds INT DEFAULT 0
-            );
-            CREATE INDEX idx_player_sessions_player_name ON player_sessions (player_name);
-            CREATE INDEX idx_player_sessions_account_id ON player_sessions (account_id);
-            CREATE INDEX idx_player_sessions_joined_at ON player_sessions (joined_at);
-        END
-        """)
+        connection.execute(text("""
+            IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'server_metrics')
+            BEGIN
+                CREATE TABLE server_metrics (
+                    id BIGSERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP NOT NULL,
+                    cpu_percent FLOAT NULL,
+                    memory_gib FLOAT NULL,
+                    players_online INT NOT NULL
+                );
+                CREATE INDEX idx_server_metrics_timestamp ON server_metrics (timestamp);
+            END
+        """))
+        connection.commit()
 
-        cur.execute("""
-        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'server_metrics')
-        BEGIN
-            CREATE TABLE server_metrics (
-                id BIGSERIAL PRIMARY KEY,
-                timestamp TIMESTAMP NOT NULL,
-                cpu_percent FLOAT NULL,
-                memory_gib FLOAT NULL,
-                players_online INT NOT NULL
-            );
-            CREATE INDEX idx_server_metrics_timestamp ON server_metrics (timestamp);
-        END
-        """)
+        connection.execute(text("""
+            IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'events')
+            BEGIN
+                CREATE TABLE events (
+                    id BIGSERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP NOT NULL,
+                    message VARCHAR(255) NOT NULL
+                );
+                CREATE INDEX idx_events_timestamp ON events (timestamp);
+            END
+        """))
+        connection.commit()
 
-        cur.execute("""
-        IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'events')
-        BEGIN
-            CREATE TABLE events (
-                id BIGSERIAL PRIMARY KEY,
-                timestamp TIMESTAMP NOT NULL,
-                message VARCHAR(255) NOT NULL
-            );
-            CREATE INDEX idx_events_timestamp ON events (timestamp);
-        END
-        """)
-
-    conn.close()
     print("Database initialized")
 
 
@@ -85,78 +80,58 @@ def log_event(message):
     if not db_enabled():
         return
 
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO events (timestamp, message) VALUES (%s, %s)",
-            (datetime.now(), message)
+    with get_connection_engine().connect() as connection:
+        connection.execute(
+            text("INSERT INTO events (timestamp, message) VALUES (:timestamp, :message)"),
+            { "timestamp": datetime.now(), "message": message }
         )
-    conn.close()
+        connection.commit()
 
 
 def player_join(account_id, player_name):
     if not db_enabled():
         return
 
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO player_sessions (player_name, account_id, joined_at)
-            VALUES (%s, %s, %s)
-        """, (player_name, account_id, datetime.now()))
-    conn.close()
+    with get_connection_engine().connect() as connection:
+        connection.execute(
+            text("INSERT INTO player_sessions (player_name, account_id, joined_at) VALUES (:player_name, :account_id, :joined_at)"),
+            { "player_name": player_name, "account_id": account_id, "joined_at": datetime.now() }
+        )
+        connection.commit()
 
 
 def player_leave(account_id):
     if not db_enabled():
         return
 
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("""
+    with get_connection_engine().connect() as connection:
+        session = connection.execute(text("""
             SELECT id, joined_at
             FROM player_sessions
-            WHERE account_id = %s AND left_at IS NULL
+            WHERE account_id = :account_id AND left_at IS NULL
             ORDER BY joined_at DESC
             LIMIT 1
-        """, (account_id,))
-        session = cur.fetchone()
+        """), { "account_id": account_id }
+        ).first()
+        connection.commit()
 
         if session:
             duration = int((datetime.now() - session["joined_at"]).total_seconds())
-            cur.execute("""
+            connection.execute(text("""
                 UPDATE player_sessions
-                SET left_at = %s, duration_seconds = %s
-                WHERE id = %s
-            """, (datetime.now(), duration, session["id"]))
-
-    conn.close()
-
-
-def log_metrics(cpu_percent, memory_gib, players_online):
-    if not db_enabled():
-        return
-
-    conn = get_connection()
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO server_metrics
-            (timestamp, cpu_percent, memory_gib, players_online)
-            VALUES (%s, %s, %s, %s)
-        """, (datetime.now(), cpu_percent, memory_gib, players_online))
-    conn.close()
-
-from utils import seconds_to_human
+                SET left_at = :left_at, duration_seconds = :duration
+                WHERE id = :id
+            """), { "left_at": datetime.now(), "duration": duration, "id": session["id"] }
+            )
+            connection.commit()
 
 
 def get_leaderboard(limit=10):
     if not db_enabled():
         return []
 
-    conn = get_connection()
-
-    with conn.cursor() as cur:
-        cur.execute("""
+    with get_connection_engine().connect() as connection:
+        rows = connection.execute(text("""
             SELECT
                 player_name,
                 COUNT(*) AS sessions,
@@ -166,12 +141,10 @@ def get_leaderboard(limit=10):
             WHERE duration_seconds > 0
             GROUP BY player_name
             ORDER BY total_seconds DESC
-            LIMIT %s
-        """, (limit,))
-
-        rows = cur.fetchall()
-
-    conn.close()
+            LIMIT :limit
+        """), { "limit": limit }
+        ).all()
+        connection.commit()
 
     leaderboard = []
 
