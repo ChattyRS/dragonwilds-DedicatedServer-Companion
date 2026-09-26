@@ -28,8 +28,10 @@ def init_db():
 
     with get_connection_engine().connect() as connection:
         connection.execute(text("""
+        DO $$
+        BEGIN
             IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'player_sessions')
-            BEGIN
+            THEN
                 CREATE TABLE player_sessions (
                     id BIGSERIAL PRIMARY KEY,
                     player_name VARCHAR(100) NOT NULL,
@@ -41,13 +43,17 @@ def init_db():
                 CREATE INDEX idx_player_sessions_player_name ON player_sessions (player_name);
                 CREATE INDEX idx_player_sessions_account_id ON player_sessions (account_id);
                 CREATE INDEX idx_player_sessions_joined_at ON player_sessions (joined_at);
-            END
+            END IF;
+        END
+        $$;
         """))
         connection.commit()
 
         connection.execute(text("""
+        DO $$
+        BEGIN
             IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'server_metrics')
-            BEGIN
+            THEN
                 CREATE TABLE server_metrics (
                     id BIGSERIAL PRIMARY KEY,
                     timestamp TIMESTAMP NOT NULL,
@@ -56,20 +62,26 @@ def init_db():
                     players_online INT NOT NULL
                 );
                 CREATE INDEX idx_server_metrics_timestamp ON server_metrics (timestamp);
-            END
+            END IF;
+        END
+        $$;
         """))
         connection.commit()
 
         connection.execute(text("""
+        DO $$
+        BEGIN
             IF NOT EXISTS (SELECT * FROM information_schema.tables WHERE table_name = 'events')
-            BEGIN
+            THEN
                 CREATE TABLE events (
                     id BIGSERIAL PRIMARY KEY,
                     timestamp TIMESTAMP NOT NULL,
                     message VARCHAR(255) NOT NULL
                 );
                 CREATE INDEX idx_events_timestamp ON events (timestamp);
-            END
+            END IF;
+        END
+        $$;
         """))
         connection.commit()
 
