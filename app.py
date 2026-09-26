@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-import config
+from data import config
 from database import init_db
 from state import get_state
 from monitor import start_monitor

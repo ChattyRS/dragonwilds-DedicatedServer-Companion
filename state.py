@@ -1,7 +1,7 @@
 import time
 from threading import Lock
 from datetime import datetime
-import config
+from data import config
 
 _lock = Lock()
 

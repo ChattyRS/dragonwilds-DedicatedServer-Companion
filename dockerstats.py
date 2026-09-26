@@ -1,6 +1,6 @@
 import threading
 import time
-import config
+from data import config
 from state import update_field
 from utils import run_cmd, seconds_to_human
 from datetime import datetime, timezone

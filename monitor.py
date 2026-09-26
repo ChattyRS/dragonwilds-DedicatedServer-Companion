@@ -2,7 +2,7 @@ import subprocess
 import re
 import threading
 import time
-import config
+from data import config
 from state import set_player, remove_player, update_field, add_event, clear_players
 from database import log_event, player_join, player_leave
 

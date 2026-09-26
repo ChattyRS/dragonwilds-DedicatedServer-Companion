@@ -1,7 +1,7 @@
 import os
 import time
 import threading
-import config
+from data import config
 from state import update_field
 from utils import seconds_to_human
 
