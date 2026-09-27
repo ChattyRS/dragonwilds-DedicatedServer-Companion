@@ -63,7 +63,9 @@ def parse_line(line):
 
 def follow_logs_forever():
     was_running = False
-
+    clear_players()
+    update_field("status", "offline")
+    
     def log_stopped():
         clear_players()
         add_event("Server stopped")
