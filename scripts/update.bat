@@ -1,0 +1,1 @@
+steamcmd +force_install_dir C:\Dragonwilds +login anonymous +app_update 4019830 +quit
