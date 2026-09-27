@@ -106,6 +106,13 @@ def follow_logs_forever():
             print("[*] Monitoring logs for real-time updates...")
             
             while True:
+                time.sleep(1)
+                if not server_running():
+                    print(f"[!] Server not running. Retrying in 5 seconds...")
+                    log_stopped()
+                    was_running = False
+                    time.sleep(5)
+                    break
                 lines = f.readlines()
                 if not lines or len(lines) == 0:
                     # No new logs yet; wait briefly to prevent high CPU usage
